@@ -3,21 +3,23 @@
 
 import discord
 import asyncio  ## discord.py is asynchronous event driven library, so we want to use nonblocking io operations.
-import aiohttp  ## Used for HTTP GET requests to API services.
+import aiohttp  ## Async lib Used for HTTP GET requests to API services.
 import json
 import os       ## not really needed right now...
 from discord.ext import commands
 
 bot = commands.Bot(command_prefix='!')
 # let's take console input for some of these variables in the near future.
-daddy = 'Kitime#9120' 
-## daddy is our list of authorized users (in name+identifier format) - probably the person running the bot.
+owner = 'Kitime#9120' 
+## owner is our authorized user (in name#identifier format).
 
 dotaapi = 'https://api.opendota.com/api'
 ## We are calling the opendota API.
 
 oauthtoken = '' 
-## oauth login token for the bot goes here.
+## oauth login token for the bot goes here. (Raises RuntimeError if no token is defined.)
+## oauthtoken = input("Enter your oauth token: ")
+
 
 @bot.event
 async def on_ready():
@@ -27,19 +29,6 @@ async def on_ready():
     print('UID     : ' + str(bot.user.id))
     print('Running on platform: ' + os.name)
     print('------')
-
-## Old way to do it.
-#@bot.listen()
-#async def on_message(message):
-#    print('called on_message')
-#    if message.author == bot.user:
-#        return
-#    elif message.content.startswith('?online'):
-#        print('called ?online')
-#        await message.channel.send('Yo, I\'m online. Feel that BDE.')
-#        exit
-
-#Bot command events (new way we do it):
 
 ## !online command:
 @bot.command()
@@ -55,13 +44,13 @@ async def online(ctx):
 @bot.command()
 async def kill(message):
     killer = message.author
-    if str(killer) == daddy: ## daddy is our authorized user defined earlier.4
+    if str(killer) == owner: ## owner is our authorized user defined earlier
             print('CONSOLE: Bot received !kill command from authorized user ' + str(killer) +', shutting down...')
             await message.channel.send('OK, shutting down...')
             await bot.logout()
             await bot.close()
             exit
-    elif killer != daddy:
+    elif killer != owner:
             await message.channel.send(str(killer) + ' attempted to shut down' + str(bot.user.name) + '...')
             await asyncio.sleep(2.5)
             print('Attempted to be Killed by ' + str(killer))
@@ -72,43 +61,33 @@ async def kill(message):
 
 ## !dotagetrank command:
 # needs to accept an actual SteamID instead of Account ID, or convert.
-# Real SteamID for J.B.H. : 76561198037267879 (REF: https://steamid.io/lookup/76561198037267879)
+# Example Real SteamID for J.B.H. : 76561198037267879 (REF: https://steamid.io/lookup/76561198037267879)
 @bot.command()
 async def dotagetrank(ctx, steamid): ## needs exception handler to catch instances where no SteamID is input.
         await ctx.send('OK, getting ranking information for SteamID ' + str(steamid) + '...')
-        ## aiohttp is pretty verbose to give the event loop opportunities to switch context:
         async with aiohttp.ClientSession() as session: ## Create the session
             async with session.get(dotaapi + '/players/' + steamid) as response: ## Make the GET request to the opendota API
-                dotajson = await response.text() # OK, we have the API response saved, now we deserialize into a python object:
-                await ctx.send('DEBUG: Now stepping into deserialization of API response...')
-                # ... Which python makes as easy as this:
+                dotajson = await response.text() ## API response saved, now we deserialize into a python object:
                 dotaresponse = json.loads(dotajson) # JSON object data now deserialized to python object data (with dict type).
-                await ctx.send(str(dotaresponse['profile']['personaname']) + '\'s MMR Estimate is ' + str(dotaresponse['mmr_estimate']['estimate'])) # dotaresponse is now a python dict containing the JSON object we got from the API request.
-                await ctx.send('Hopefully, we just printed the solo MMR rank subobject to chat...')
-                # that value seems to not mean much for now...
-                pass
-
-        # HTTP GET dotaapi + /players/ + steamid
-
-    #    GET https://api.opendota.com/api/players/77002151 (requires steam "account ID")- sample of return:
-    # https://docs.opendota.com/#tag/players%2Fpaths%2F~1players~1%7Baccount_id%7D%2Fget
-    #    message.content
-    #    print('DEBUG: parsing dotagetrank call for ' + steamid)
-    #    dotaid = message.content    
-    # #get rank from OpenDota API:
-    #    if message.content
+                try:
+                    displayname = dotaresponse['profile'].get('personaname') ## returns nothing if expose public match data not enabled!!!
+                except KeyError: # Raised if no dictionary key is returned - usually due to no data return from API.
+                    await ctx.send('ERR: Hmm... I couldn\'t find any data for ' + steamid + ', do they have \'expose public data\' option enabled in Dota?')
+                    await ctx.send('For more info, click here: https://plair.zendesk.com/hc/en-us/articles/360019111193-Enable-Expose-Public-Match-Data-Setting' + ' - You may also need to play at least one match once enabling. Ask matt about that.')
+                    pass
+                else:
+                    solorank = str(dotaresponse.get('solo_competitive_rank'))
+                    dotaplus = str(dotaresponse['profile'].get('plus'))
+                    ranktier = dotaresponse.get('rank_tier')
+                    await ctx.send(displayname + '\'s MMR Estimate is ' + str(dotaresponse['mmr_estimate']['estimate'])) # values seem to not mean much for now... Test these estimates.
+                    await ctx.send('Solo MMR Rank: ' + solorank)
+                    await ctx.send(':moneybag::money_mouth: Dota Plus Subscriber? :money_mouth::moneybag: = ' + dotaplus)
+                    await ctx.send('Rank Tier: ' + str(ranktier))
+                    pass
 
 ## @bot.command()
-## async def recentlyplayed(ctx, steamid):
+## async def steamrecentlyplayed(ctx, steamid):
 #### Use Steam Web API command as follows to return JSON 
-#### (example: https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=&steamid=76561198037267879&format=json)
-##
-##
-##
-
-#API JSON Handler:
-# API return = apijsondata
-# apijsondata['rank']
-# 'value_of_rank'
+#### (example: https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v0001/?key=BC92F2D1D7570507DA6249FF5C21E80C&steamid=76561198037267879&format=json)
 
 bot.run(oauthtoken)
