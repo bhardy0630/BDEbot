@@ -1,24 +1,20 @@
 ## basic Discord bot that reads data from various APIs and returns it to the caller.
-## v0.5
+## v0.55
 
 import discord
-import asyncio  ## discord.py is asynchronous event driven library, so we want to use nonblocking io operations.
+import asyncio
 import aiohttp  ## Async lib Used for HTTP GET requests to API services.
 import json
 import os       ## not really needed right now...
 from discord.ext import commands
 
+## Defining variables. should take console input for some of these 
+## variables in the near future instead of hardcoding the values.
 bot = commands.Bot(command_prefix='!')
-# let's take console input for some of these variables in the near future.
-owner = 'Kitime#9120' 
-## owner is our authorized user (in name#identifier format).
-
+owner = 'Kitime#9120'  # owner is our authorized user (in name#identifier format).
 dotaapi = 'https://api.opendota.com/api'
-## We are calling the opendota API.
-
-oauthtoken = '' 
-## oauth login token for the bot goes here. (Raises RuntimeError if no token is defined.)
-## oauthtoken = input("Enter your oauth token: ")
+oauthtoken = ''  # oauth login token for the bot goes here. (Raises RuntimeError if no token is defined.)
+# oauthtoken = input("Enter your oauth token: ")
 
 
 @bot.event
